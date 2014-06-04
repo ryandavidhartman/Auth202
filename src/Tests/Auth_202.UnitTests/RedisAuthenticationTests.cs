@@ -5,6 +5,7 @@ using Auth_202.Model.Constants;
 using Auth_202.Model.Data;
 using Auth_202.Model.Operations;
 using Auth_202.WebAPI;
+using MessagingServiceUtilities.Dto.Responses;
 using MessagingServiceUtilities.Implementations;
 using NUnit.Framework;
 using ServiceStack;
@@ -15,7 +16,6 @@ using ServiceStack.Messaging;
 using ServiceStack.Messaging.Redis;
 using ServiceStack.OrmLite;
 using ServiceStack.Redis;
-using ServiceStack.Serialization;
 
 namespace Auth_202.UnitTests
 {
@@ -56,37 +56,24 @@ namespace Auth_202.UnitTests
         [Test]
         public void get_currency_types_no_authentication()
         {
+            var redisMqClient = GetRedisClient();
 
-            var redisFactory = new PooledRedisClientManager("localhost:6379");
-            var mqHost = new RedisMqServer(redisFactory, retryCount: 2);
-            var mqClient = mqHost.CreateMessageQueueClient();
-            
-            var uniqueCallbackQ = "mq:c1" + ":" + Guid.NewGuid().ToString("N");
-            var clientMsg = new Message<GetCurrencyTypes>(new GetCurrencyTypes()) {
-                ReplyTo =  uniqueCallbackQ
-            };
 
-            
-            mqClient.Publish( clientMsg );
-            
-            
-            
-            var response = mqClient.Get<string>(clientMsg.ReplyTo, new TimeSpan(0,0,10));
+            var response = redisMqClient.GetListFromMessageQueue<CurrencyType, GetCurrencyTypes>(new GetCurrencyTypes());
             Assert.IsNotNull(response);
             Assert.IsFalse(response.IsErrorResponse());
             
-            Assert.AreEqual(typeof(Message<string>), response.GetType());
-            Assert.IsNotNull(response.Body);
-            var body = response.Body.ToString();
-            var result = body.FromJson<List<CurrencyType>>();
+            Assert.AreEqual(typeof(Message<GetResponseList<CurrencyType>>), response.GetType());
+            Assert.IsNotNull(response.GetBody());
+            var result = response.GetBody().Result;
             Assert.IsNotNull(result);
             Assert.AreEqual(3, result.Count);
         }
 
         [Test]
-        public void post_transaction_fails_without_authentication()
-        {
-            var transaction = new Transaction
+        public void post_transaction_ok_without_authentication()
+        {  
+            var transaction = new Transaction 
             {
                 Amount = 10.00m,
                 Card = "XXXXXXXXXX124",
@@ -100,7 +87,7 @@ namespace Auth_202.UnitTests
 
             var client = GetRedisClient();
             var response = client.PostData(transaction).GetBody();
-            Assert.AreEqual("401", response.Status);
+            Assert.AreEqual("200", response.Status);
         }
 
 

@@ -1,12 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Configuration;
+﻿using System.Configuration;
 using Auth_202.BusinessLogic.BusinessLogic;
 using Auth_202.DataLayer.Repositories;
 using Auth_202.Model.Constants;
 using Auth_202.Model.Data;
 using Auth_202.Model.Operations;
-using Auth_202.WebAPI.Services;
 using Funq;
 using RESTServiceUtilities.Interfaces;
 using ServiceStack;
@@ -14,7 +11,6 @@ using ServiceStack.Auth;
 using ServiceStack.Data;
 using ServiceStack.Logging;
 using ServiceStack.Logging.Log4Net;
-using ServiceStack.Messaging;
 using ServiceStack.Messaging.Redis;
 using ServiceStack.OrmLite;
 using ServiceStack.Redis;
@@ -78,22 +74,7 @@ namespace Auth_202.WebAPI
 
             // Dto Get Operations
 
-            mqService.RegisterHandler<GetCurrencyTypes>(ServiceController.ExecuteMessage);
-
-            //Action<IMessage<GetCurrencyTypes>, Exception> error1 = MessagingError; 
-          
-            /*
-            mqService.RegisterHandler<GetCurrencyTypes>(m =>
-            {
-                var webService = new CurrencyTypeWebService {Logic = currencyTypeLogic};
-
-                    var raw = webService.Get(m.GetBody());
-                    var result = raw as List<CurrencyType>;
-                    if (result == null)
-                        throw new ApplicationException("No results!");
-                return result;
-            }, error1 );*/
-            
+            mqService.RegisterHandler<GetCurrencyTypes>(m => messagingHandlers.MessagingGetWrapper(m.GetBody(), currencyTypeLogic));
             mqService.RegisterHandler<GetTransactions>(m => messagingHandlers.MessagingGetWrapper(m.GetBody(), transactionLogic));
             mqService.RegisterHandler<GetTransactionStatusTypes>(m => messagingHandlers.MessagingGetWrapper(m.GetBody(), transactionStatusTypeLogic));
             mqService.RegisterHandler<GetTransactionNotificationStatusTypes>(m => messagingHandlers.MessagingGetWrapper(m.GetBody(), transactionNotificationStatusTypeLogic));
@@ -102,7 +83,7 @@ namespace Auth_202.WebAPI
             // Dto Post Operations
             mqService.RegisterHandler<CurrencyType>(m => messagingHandlers.MessagingPostRequest(m.GetBody(), currencyTypeLogic.Post));
            
-            mqService.RegisterHandler<Transaction>(m => messagingHandlers.MessagingPostRequest(m.GetBody(), new TransactionWebService().Post  ));
+            mqService.RegisterHandler<Transaction>(m => messagingHandlers.MessagingPostRequest(m.GetBody(), transactionLogic.Post));
             mqService.RegisterHandler<TransactionStatusType>(m => messagingHandlers.MessagingPostRequest(m.GetBody(), transactionStatusTypeLogic.Post));
             mqService.RegisterHandler<TransactionNotificationStatusType>(m => messagingHandlers.MessagingPostRequest(m.GetBody(), transactionNotificationStatusTypeLogic.Post));
             mqService.RegisterHandler<TransactionType>(m => messagingHandlers.MessagingPostRequest(m.GetBody(), transactionTypeLogic.Post));
@@ -116,24 +97,6 @@ namespace Auth_202.WebAPI
             
             mqService.Start();
             
-        }
-
-        private static void MessagingError(IMessage<GetCurrencyTypes> message, Exception error)
-        {
-            var errorLogger = new Logger(typeof(Auth_202AppHost).Name);
-            errorLogger.LogError(error);
-
-            var redisFactory = new PooledRedisClientManager("localhost:6379");
-            var mqHost = new RedisMqServer(redisFactory, retryCount: 2);
-            var mqClient = mqHost.CreateMessageQueueClient();
-
-            var responseStatus = new ResponseStatus {ErrorCode = "500", Message = error.Message, StackTrace = error.StackTrace};
-            
-            mqClient.Publish(message.ReplyTo, new Message<Exception>{Error = responseStatus,
-                Body = error,
-                CreatedDate = DateTime.UtcNow
-            });
-
         }
     }
    

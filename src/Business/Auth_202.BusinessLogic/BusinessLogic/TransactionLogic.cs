@@ -5,7 +5,6 @@ using Auth_202.Model.Constants;
 using Auth_202.Model.Data;
 using Auth_202.Model.Operations;
 using RESTServiceUtilities.Implementations.Business;
-using ServiceStack;
 
 namespace Auth_202.BusinessLogic.BusinessLogic
 {

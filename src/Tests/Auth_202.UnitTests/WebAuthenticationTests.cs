@@ -50,7 +50,7 @@ namespace Auth_202.UnitTests
         }
 
         [Test]
-        public void get_currency_types_with_authentication()
+        public void get_currency_types_ok_with_authentication()
         {
             var client = GetJsonClient();
             client.SetCredentials(DefaultAdmin.Username, DefaultAdmin.Password);
@@ -60,11 +60,11 @@ namespace Auth_202.UnitTests
 
 
         [Test]
-        public void get_currency_types_failes_without_authentication()
+        public void get_currency_types_ok_without_authentication()
         {
             var client = GetJsonClient();
-            var error = Assert.Throws<WebServiceException>(() => client.Get<List<CurrencyType>>("/currencytypes"));
-            Assert.AreEqual("Unauthorized", error.Message);
+            var response = client.Get<List<CurrencyType>>("/currencytypes");
+            Assert.IsNotNull(response);
         }
 
 
