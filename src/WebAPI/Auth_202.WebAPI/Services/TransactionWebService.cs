@@ -1,4 +1,5 @@
-﻿using Auth_202.BusinessLogic.BusinessLogic;
+﻿using System;
+using Auth_202.BusinessLogic.BusinessLogic;
 using Auth_202.Model.Data;
 using Auth_202.Model.Operations;
 using ServiceStack;
@@ -11,6 +12,11 @@ namespace Auth_202.WebAPI.Services
         [Authenticate]
         public override object Post(Transaction data)
         {
+            var session = GetSession();
+            var userName = session.UserName;
+            if(userName != "ryan")
+                throw new Exception();
+            
             return base.Post(data);
         }
     }

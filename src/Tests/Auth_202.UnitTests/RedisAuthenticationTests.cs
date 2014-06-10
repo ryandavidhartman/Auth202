@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Text;
 using Auth_202.DatabaseSetup;
 using Auth_202.Model.Constants;
 using Auth_202.Model.Data;
@@ -88,6 +89,42 @@ namespace Auth_202.UnitTests
             var client = GetRedisClient();
             var response = client.PostData(transaction).GetBody();
             Assert.AreEqual("200", response.Status);
+        }
+
+        [Test]
+        public void post_transaction_ok_with_authentication()
+        {
+            var uniqueCallbackQ = "mq:c1" + ":" + Guid.NewGuid().ToString("N");
+
+            var transaction = new Transaction
+            {
+                Amount = 10.00m,
+                Card = "XXXXXXXXXX124",
+                CreateDate = DateTime.UtcNow,
+                SubscriptionId = 101,
+                GatewayTransactionId = "123456",
+                TransactionTypeId = (long)TRANSACTION_TYPE.AuthorizeAndCapture,
+                TransactionStatusId = (long)TRANSACTION_STATUS.Pending,
+                GatewayResponse = "ok"
+            };
+            
+            
+            var clientMsg = new Message<Transaction>(transaction)
+            {
+                ReplyTo = uniqueCallbackQ,
+                Tag = "basic " + Convert.ToBase64String(Encoding.UTF8.GetBytes(DefaultAdmin.Username + ":" + DefaultAdmin.Password))
+            };
+
+            var redisFactory = new PooledRedisClientManager("localhost:6379");
+            var mqHost = new RedisMqServer(redisFactory, retryCount: 2);
+
+            var mqClient = mqHost.CreateMessageQueueClient();
+
+            mqClient.Publish(clientMsg);
+            var response = mqClient.Get<PostResponse<Transaction>>(clientMsg.ReplyTo, new TimeSpan(0,10,10)); //Blocks thread on client until reply message is received
+            var result = response.GetBody().Result;
+            Assert.IsNotNull(result);
+            Assert.IsTrue(result.Id > 0);
         }
 
 
